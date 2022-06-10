@@ -1,0 +1,37 @@
+[Unit]
+Description=Asterisk PBX And Telephony Daemon
+#Wants=network.target
+After=network.target
+#Wants=network-online.target
+#After=network-online.target
+
+[Service]
+Type=notify
+Environment=HOME=/var/lib/asterisk
+
+# Custom environment variable coded into res_pjsip_nat.c
+# pjsip will use this in the headers instead of the resolved IP address as Teams requires
+Environment=PJSIPEXTERNALFQDN=your-sbc-fqdn-goes-here.bogus.com
+
+WorkingDirectory=/var/lib/asterisk
+#User=asterisk
+#Group=asterisk
+User=root
+Group=root
+ExecStart=/usr/sbin/asterisk -mqf -C /etc/asterisk/asterisk.conf
+ExecReload=/usr/sbin/asterisk -rx 'core reload'
+ExecStop=/usr/sbin/asterisk -rx 'core stop now'
+
+LimitCORE=infinity
+LimitNOFILE=65535
+
+Restart=on-failure
+RestartSec=10
+
+# Prevent duplication of logs with color codes to /var/log/messages
+StandardOutput=null
+
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

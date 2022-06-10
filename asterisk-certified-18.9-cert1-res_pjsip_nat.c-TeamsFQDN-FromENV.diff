@@ -1,0 +1,44 @@
+diff --git a/res/res_pjsip_nat.c b/res/res_pjsip_nat.c
+index 2d5e6a7583..891adf8591 100644
+--- a/res/res_pjsip_nat.c
++++ b/res/res_pjsip_nat.c
+@@ -373,6 +373,9 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
+ 	pjsip_sip_uri *uri = NULL;
+ 	RAII_VAR(struct ao2_container *, hooks, NULL, ao2_cleanup);
+ 
++	/* MSHARP 20220610 - Used for brute force Teams FQDN support - Would like to be able to load this from a channel variable */
++	char *envret = NULL;
++
+ 	/* If a transport selector is in use we know the transport or factory, so explicitly find it */
+ 	if (tdata->tp_sel.type == PJSIP_TPSELECTOR_TRANSPORT) {
+ 		details.transport = tdata->tp_sel.u.transport;
+@@ -445,7 +448,13 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
+ 			pjsip_method_cmp(&cseq->method, &pjsip_register_method)) {
+ 			/* We can only rewrite the URI when one is present */
+ 			if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
+-				pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
++				/* MSHARP 20220610 - Brute force Teams FQDN support - Would like to be able to load this from a channel variable */
++				envret = getenv("PJSIPEXTERNALFQDN");
++				if (envret) {
++					pj_strdup2(tdata->pool, &uri->host, envret);
++				} else {
++					pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
++				}
+ 				if (transport->external_signaling_port) {
+ 					uri->port = transport->external_signaling_port;
+ 					ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
+@@ -455,7 +464,13 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
+ 
+ 		/* Update the via header if relevant */
+ 		if ((tdata->msg->type == PJSIP_REQUEST_MSG) && (via || (via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL)))) {
+-			pj_strdup2(tdata->pool, &via->sent_by.host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
++			/* MSHARP 20220610 - Brute force Teams FQDN support - Would like to be able to load this from a channel variable */
++			envret = getenv("PJSIPEXTERNALFQDN");
++			if (envret) {
++				pj_strdup2(tdata->pool, &via->sent_by.host, envret);
++			} else {
++				pj_strdup2(tdata->pool, &via->sent_by.host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
++			}
+ 			if (transport->external_signaling_port) {
+ 				via->sent_by.port = transport->external_signaling_port;
+ 			}
